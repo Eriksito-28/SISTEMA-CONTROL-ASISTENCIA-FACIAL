@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 from apps.trabajadores.models import Trabajador
 
-#campos de la tabla usuarios para migrar a mi base de datos
 class Rol(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     descripcion = models.CharField(max_length=150, blank=True, null=True)
@@ -31,10 +30,14 @@ class Usuario(models.Model):
     )
     intentos_fallidos = models.IntegerField(default=0)
     bloqueado = models.BooleanField(default=False)
+    debe_cambiar_password = models.BooleanField(default=False)
     ultimo_login = models.DateTimeField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Requerido por DRF para verificar autenticación
+    is_authenticated = True
 
     class Meta:
         db_table = 'usuarios'

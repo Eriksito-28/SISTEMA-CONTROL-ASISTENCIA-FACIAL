@@ -7,9 +7,10 @@ from .serializers import (
     TrabajadorCrearSerializer,
     TrabajadorActualizarSerializer
 )
+from apps.usuarios.models import Usuario, Rol
+from django.contrib.auth.hashers import make_password
 
 
-#esta clase realiza dos operaciones, muestra todos los trabajadores y crea uno nuevo 
 class TrabajadorListarCrearView(APIView):
 
     def get(self, request):
@@ -25,16 +26,31 @@ class TrabajadorListarCrearView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         trabajador = serializer.save()
+
+        # Crear usuario automáticamente al crear trabajador
+        try:
+            rol = Rol.objects.get(nombre='TRABAJADOR')
+            Usuario.objects.create(
+                username=trabajador.dni,
+                password=make_password('municipalidad2026'),
+                trabajador=trabajador,
+                rol=rol,
+                debe_cambiar_password=True  # Forzar cambio en primer login
+            )
+        except Rol.DoesNotExist:
+            # Si no existe el rol, igual se crea el trabajador
+            pass
+        except Exception as e:
+            # Si falla la creación del usuario, igual se crea el trabajador
+            print(f'Error creando usuario automático: {e}')
+
         return Response(
             TrabajadorSerializer(trabajador).data,
             status=status.HTTP_201_CREATED
         )
 
 
-#esta clas maneja muchas más opecaciones que la anterior y 
-#la diferencia es que esta lo hace sobre un trabajador específico 
 class TrabajadorDetalleView(APIView):
-
 
     def get_object(self, pk):
         try:

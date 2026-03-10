@@ -6,21 +6,29 @@ from apps.trabajadores.models import Trabajador
 from apps.marcaciones.services import registrar_marcacion
 from apps.configuracion.models import ConfiguracionSistema
 from apps.usuarios.models import Usuario
-from .services import generar_embedding, comparar_embeddings
+from .services import generar_embedding, generar_embedding_promedio, comparar_embeddings
 
 
-
-#recibe la imagen del trabajador desde el panel admin, genera un embedding con
-#insightface y lo guarda en la base de datos
+# Recibe una o varias imágenes del trabajador desde el panel admin, genera un embedding
+# promedio con InsightFace y lo guarda en la base de datos.
+# Si se envía una sola imagen usa generar_embedding.
+# Si se envían varias imágenes usa generar_embedding_promedio para mayor precisión.
 class RegistrarEmbeddingView(APIView):
 
     def post(self, request):
         trabajador_id = request.data.get('trabajador_id')
-        imagen_base64 = request.data.get('imagen')
+        imagen_base64 = request.data.get('imagen')          # Una sola imagen
+        imagenes_base64 = request.data.get('imagenes')      # Lista de imágenes
 
-        if not trabajador_id or not imagen_base64:
+        if not trabajador_id:
             return Response(
-                {'error': 'trabajador_id e imagen son requeridos'},
+                {'error': 'trabajador_id es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not imagen_base64 and not imagenes_base64:
+            return Response(
+                {'error': 'Se requiere imagen o imagenes'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -32,7 +40,20 @@ class RegistrarEmbeddingView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        embedding, error = generar_embedding(imagen_base64)
+        # Si se enviaron múltiples imágenes usar embedding promedio
+        if imagenes_base64:
+            if not isinstance(imagenes_base64, list):
+                return Response(
+                    {'error': 'imagenes debe ser una lista'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            embedding, error = generar_embedding_promedio(imagenes_base64)
+            metodo = 'promedio'
+        else:
+            # Una sola imagen
+            embedding, error = generar_embedding(imagen_base64)
+            metodo = 'simple'
+
         if error:
             return Response(
                 {'error': error},
@@ -44,14 +65,18 @@ class RegistrarEmbeddingView(APIView):
         trabajador.save()
 
         return Response(
-            {'mensaje': 'Embedding registrado correctamente'},
+            {
+                'mensaje': 'Embedding registrado correctamente',
+                'metodo': metodo,
+                'imagenes_procesadas': len(imagenes_base64) if imagenes_base64 else 1
+            },
             status=status.HTTP_200_OK
         )
 
 
-#valida que el trabajador exista y esté activo, verifica que tenga embedding registrado,
-#genera el embedding de la imagen capturada, compara ambos embeddings y si coinciden 
-#registra la marcación automáticamente.
+# Valida que el trabajador exista y esté activo, verifica que tenga embedding registrado,
+# genera el embedding de la imagen capturada, compara ambos embeddings y si coinciden
+# registra la marcación automáticamente.
 class VerificarRostroView(APIView):
 
     def post(self, request):
@@ -121,7 +146,7 @@ class VerificarRostroView(APIView):
             trabajador.embedding,
             config.umbral_similitud
         )
-         
+
         if not verificado:
             usuario.intentos_fallidos += 1
             if usuario.intentos_fallidos >= config.max_intentos_faciales:
