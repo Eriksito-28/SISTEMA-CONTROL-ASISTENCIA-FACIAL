@@ -28,7 +28,7 @@ def decodificar_imagen(imagen_base64):
         imagen_base64 = imagen_base64.strip().replace('\n', '').replace('\r', '').replace(' ', '')
         
         # CORREGIR PADDING FALTANTE
-        padding = 4 - len(imagen_base64) % 4
+        padding = 4 - len(imagen_base64) % 4      
         if padding != 4:
             imagen_base64 += '=' * padding
         
