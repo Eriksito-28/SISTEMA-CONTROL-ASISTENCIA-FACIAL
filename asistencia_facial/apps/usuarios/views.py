@@ -7,6 +7,7 @@ from .serializers import LoginSerializer
 from .services import validar_login
 from .models import Usuario, Rol
 from apps.trabajadores.models import Trabajador
+from apps.auditoria.services import registrar_auditoria
 from django.contrib.auth.hashers import make_password
 
 
@@ -39,13 +40,33 @@ class LoginView(APIView):
 
         username = serializer.validated_data['username']
         password = serializer.validated_data['password']
+        ip = request.META.get('REMOTE_ADDR', '0.0.0.0')
 
         usuario, error = validar_login(username, password)
         if error:
+            # Registrar intento fallido en auditoría
+            try:
+                u = Usuario.objects.get(username=username)
+                registrar_auditoria(
+                    usuario=u,
+                    accion='LOGIN_FALLIDO',
+                    descripcion=f'Intento de login fallido: {error}',
+                    ip=ip
+                )
+            except Usuario.DoesNotExist:
+                pass
             return Response(
                 {'error': error},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        # Registrar login exitoso en auditoría
+        registrar_auditoria(
+            usuario=usuario,
+            accion='LOGIN_EXITOSO',
+            descripcion=f'Inicio de sesión exitoso',
+            ip=ip
+        )
 
         refresh, access = get_tokens_for_user(usuario)
 
@@ -69,6 +90,18 @@ class LogoutView(APIView):
             refresh_token = request.data.get('refresh')
             token = RefreshToken(refresh_token)
             token.blacklist()
+
+            # Registrar logout en auditoría
+            try:
+                registrar_auditoria(
+                    usuario=request.user,
+                    accion='LOGOUT',
+                    descripcion='Cierre de sesión',
+                    ip=request.META.get('REMOTE_ADDR', '0.0.0.0')
+                )
+            except Exception:
+                pass
+
             return Response(
                 {'mensaje': 'Sesión cerrada correctamente'},
                 status=status.HTTP_200_OK
@@ -79,9 +112,6 @@ class LogoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
-# Permite al usuario cambiar su contraseña.
-# Si debe_cambiar_password=True, después de cambiarla se pone en False.
 
 class CambiarPasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -105,6 +135,12 @@ class CambiarPasswordView(APIView):
         usuario = request.user
 
         if not usuario.check_password(password_actual):
+            registrar_auditoria(
+                usuario=usuario,
+                accion='CAMBIO_PASSWORD_FALLIDO',
+                descripcion='Intento de cambio de contraseña fallido',
+                ip=request.META.get('REMOTE_ADDR', '0.0.0.0')
+            )
             return Response(
                 {'error': 'La contraseña actual es incorrecta'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -114,12 +150,19 @@ class CambiarPasswordView(APIView):
         usuario.debe_cambiar_password = False
         usuario.save()
 
+        registrar_auditoria(
+            usuario=usuario,
+            accion='CAMBIO_PASSWORD',
+            descripcion='Contraseña actualizada correctamente',
+            ip=request.META.get('REMOTE_ADDR', '0.0.0.0')
+        )
+
         return Response(
             {'mensaje': 'Contraseña actualizada correctamente'},
             status=status.HTTP_200_OK
         )
 
-# Desbloquea un usuario bloqueado por intentos fallidos.
+
 class DesbloquearUsuarioView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -136,13 +179,19 @@ class DesbloquearUsuarioView(APIView):
         usuario.intentos_fallidos = 0
         usuario.save()
 
+        registrar_auditoria(
+            usuario=request.user,
+            accion='DESBLOQUEAR_USUARIO',
+            descripcion=f'Usuario {usuario.username} desbloqueado',
+            ip=request.META.get('REMOTE_ADDR', '0.0.0.0')
+        )
+
         return Response(
             {'mensaje': f'Usuario {usuario.username} desbloqueado correctamente'},
             status=status.HTTP_200_OK
         )
 
 
-# Resetea los intentos faciales fallidos de un usuario.
 class ResetearIntentosFacialesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -159,7 +208,43 @@ class ResetearIntentosFacialesView(APIView):
         usuario.bloqueado = False
         usuario.save()
 
+        registrar_auditoria(
+            usuario=request.user,
+            accion='RESETEAR_INTENTOS_FACIALES',
+            descripcion=f'Intentos faciales reseteados para {usuario.username}',
+            ip=request.META.get('REMOTE_ADDR', '0.0.0.0')
+        )
+
         return Response(
             {'mensaje': f'Intentos faciales reseteados para {usuario.username}'},
             status=status.HTTP_200_OK
         )
+    
+class ListarUsuariosView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuarios = Usuario.objects.select_related(
+            'trabajador', 'rol'
+        ).all().order_by('trabajador__apellido_paterno')
+
+        data = []
+        for u in usuarios:
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'rol': u.rol.nombre,
+                'nombre_completo': f'{u.trabajador.nombres} {u.trabajador.apellido_paterno} {u.trabajador.apellido_materno}',
+                'dni': u.trabajador.dni,
+                'cargo': u.trabajador.cargo,
+                'activo': u.trabajador.activo,
+                'bloqueado': u.bloqueado,
+                'intentos_fallidos': u.intentos_fallidos,
+                'debe_cambiar_password': u.debe_cambiar_password,
+                'ultimo_login': u.ultimo_login,
+            })
+
+        return Response({
+            'total': len(data),
+            'usuarios': data
+        }, status=status.HTTP_200_OK)

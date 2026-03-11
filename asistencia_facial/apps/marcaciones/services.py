@@ -20,18 +20,39 @@ def determinar_estado(tipo, hora_actual, config):
 
 
 def validar_marcacion(trabajador):
-    ultima_marcacion = Marcacion.objects.filter(
+    hoy = timezone.localdate()
+
+    # Buscar marcaciones de HOY en hora local (Lima)
+    marcaciones_hoy = Marcacion.objects.filter(
         trabajador=trabajador,
+        fecha__date=hoy,
         exitoso=True
-    ).order_by('-fecha').first()
+    ).order_by('fecha')
 
-    if ultima_marcacion is None:
-        return 'ENTRADA', None
+    # Si no encuentra, buscar con conversión explícita
+    if not marcaciones_hoy.exists():
+        from django.db.models import F
+        ahora_local = timezone.localtime(timezone.now())
+        inicio_dia = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        fin_dia = ahora_local.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        marcaciones_hoy = Marcacion.objects.filter(
+            trabajador=trabajador,
+            fecha__gte=inicio_dia,
+            fecha__lte=fin_dia,
+            exitoso=True
+        ).order_by('fecha')
 
-    if ultima_marcacion.tipo == 'ENTRADA':
+    entrada_hoy = marcaciones_hoy.filter(tipo='ENTRADA').first()
+    salida_hoy = marcaciones_hoy.filter(tipo='SALIDA').first()
+
+    if entrada_hoy and salida_hoy:
+        return None, 'Ya registró su entrada y salida de hoy'
+
+    if entrada_hoy and not salida_hoy:
         return 'SALIDA', None
 
-    if ultima_marcacion.tipo == 'SALIDA':
+    if not entrada_hoy:
         return 'ENTRADA', None
 
     return None, 'No se pudo determinar el tipo de marcación'

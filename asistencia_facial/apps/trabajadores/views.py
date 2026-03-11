@@ -112,3 +112,28 @@ class TrabajadorDetalleView(APIView):
             TrabajadorSerializer(trabajador).data,
             status=status.HTTP_200_OK
         )
+    
+class ActivarDesactivarTrabajadorView(APIView):
+
+    def patch(self, request, pk):
+        trabajador = self.get_object(pk) if hasattr(self, 'get_object') else None
+
+        try:
+            trabajador = Trabajador.objects.get(pk=pk)
+        except Trabajador.DoesNotExist:
+            return Response(
+                {'error': 'Trabajador no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        trabajador.activo = not trabajador.activo
+        trabajador.save()
+
+        estado = 'activado' if trabajador.activo else 'desactivado'
+        return Response(
+            {
+                'mensaje': f'Trabajador {estado} correctamente',
+                'activo': trabajador.activo
+            },
+            status=status.HTTP_200_OK
+        )

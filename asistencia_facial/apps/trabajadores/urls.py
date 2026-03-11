@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import TrabajadorListarCrearView, TrabajadorDetalleView
+from .views import TrabajadorListarCrearView, TrabajadorDetalleView, ActivarDesactivarTrabajadorView
 
 
 # El primer path vaco pertenece a api/trabajadores 
@@ -8,4 +8,5 @@ from .views import TrabajadorListarCrearView, TrabajadorDetalleView
 urlpatterns = [
     path('', TrabajadorListarCrearView.as_view(), name='trabajador-listar-crear'),
     path('<int:pk>/', TrabajadorDetalleView.as_view(), name='trabajador-detalle'),
+    path('<int:pk>/activar-desactivar/', ActivarDesactivarTrabajadorView.as_view(), name='trabajador-activar-desactivar'),
 ]
