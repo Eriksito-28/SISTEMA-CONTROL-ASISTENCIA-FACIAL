@@ -8,9 +8,12 @@ from apps.configuracion.models import ConfiguracionSistema
 from apps.usuarios.models import Usuario
 from apps.auditoria.services import registrar_auditoria
 from .services import generar_embedding, generar_embedding_promedio, comparar_embeddings
+from apps.usuarios.permissions import EsAdmin
+
 
 
 class RegistrarEmbeddingView(APIView):
+    permission_classes = [EsAdmin]
 
     def post(self, request):
         trabajador_id = request.data.get('trabajador_id')

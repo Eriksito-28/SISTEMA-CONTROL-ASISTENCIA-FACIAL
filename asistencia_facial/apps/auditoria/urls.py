@@ -1,3 +1,10 @@
+"""
+Estas son las rutas para la API de auditoria
+
+Define los endpoints para consultar los registros de auditoria del sistema, 
+incluye un listado general y uno especifico por cada usuario
+"""
+
 from django.urls import path
 from .views import AuditoriaListarView, AuditoriaUsuarioView
 

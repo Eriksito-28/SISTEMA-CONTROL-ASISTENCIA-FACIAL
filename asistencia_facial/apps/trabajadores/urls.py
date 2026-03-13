@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import TrabajadorListarCrearView, TrabajadorDetalleView, ActivarDesactivarTrabajadorView
+from .views import (
+    TrabajadorListarCrearView,
+    TrabajadorDetalleView,
+    ActivarDesactivarTrabajadorView,
+    SubirFotoTrabajadorView
+)
 
 
 # El primer path vaco pertenece a api/trabajadores 
@@ -9,4 +14,5 @@ urlpatterns = [
     path('', TrabajadorListarCrearView.as_view(), name='trabajador-listar-crear'),
     path('<int:pk>/', TrabajadorDetalleView.as_view(), name='trabajador-detalle'),
     path('<int:pk>/activar-desactivar/', ActivarDesactivarTrabajadorView.as_view(), name='trabajador-activar-desactivar'),
+    path('<int:pk>/foto/', SubirFotoTrabajadorView.as_view(), name='trabajador-foto'),
 ]

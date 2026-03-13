@@ -1,8 +1,12 @@
+"""
+Este modelo registra las acciones realizadas por los usuarios, 
+la accion, descripcion, fecha y la IP para saber desde donde se hizo
+"""
+
 from django.db import models
 from apps.usuarios.models import Usuario
 
-# Create your models here.
-
+#se crea la clase auditoria que representa un registro de auditoria dentro del sistema
 class Auditoria(models.Model):
     usuario = models.ForeignKey(
         Usuario,

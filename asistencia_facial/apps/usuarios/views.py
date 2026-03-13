@@ -9,6 +9,7 @@ from .models import Usuario, Rol
 from apps.trabajadores.models import Trabajador
 from apps.auditoria.services import registrar_auditoria
 from django.contrib.auth.hashers import make_password
+from apps.usuarios.permissions import EsAdmin
 
 
 def get_tokens_for_user(usuario):
@@ -164,7 +165,7 @@ class CambiarPasswordView(APIView):
 
 
 class DesbloquearUsuarioView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [EsAdmin]
 
     def post(self, request, pk):
         try:
@@ -193,7 +194,7 @@ class DesbloquearUsuarioView(APIView):
 
 
 class ResetearIntentosFacialesView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [EsAdmin]
 
     def post(self, request, pk):
         try:
@@ -221,7 +222,7 @@ class ResetearIntentosFacialesView(APIView):
         )
     
 class ListarUsuariosView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [EsAdmin]
 
     def get(self, request):
         usuarios = Usuario.objects.select_related(
@@ -247,4 +248,23 @@ class ListarUsuariosView(APIView):
         return Response({
             'total': len(data),
             'usuarios': data
+        }, status=status.HTTP_200_OK)
+    
+#para el usuario actual
+class PerfilView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+        return Response({
+            'id': usuario.id,
+            'username': usuario.username,
+            'rol': usuario.rol.nombre,
+            'nombre_completo': f'{usuario.trabajador.nombres} {usuario.trabajador.apellido_paterno} {usuario.trabajador.apellido_materno}',
+            'dni': usuario.trabajador.dni,
+            'cargo': usuario.trabajador.cargo,
+            'trabajador_id': usuario.trabajador.id,
+            'foto_url': usuario.trabajador.foto_url,
+            'debe_cambiar_password': usuario.debe_cambiar_password,
+            'bloqueado': usuario.bloqueado,
         }, status=status.HTTP_200_OK)

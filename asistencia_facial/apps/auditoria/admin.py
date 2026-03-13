@@ -1,8 +1,14 @@
+"""
+Configuración del panel de administración para el modelo auditoría,
+permite visualizar y gestionar los registros de auditoría del sistema
+"""
+
+
 from django.contrib import admin
 from .models import Auditoria
 
-# Register your models here.
-
+#columnas que se mostrarán en la lista del panel del administrador
+#campos habilitados para búsqueda y filtros en el panel del administrador
 @admin.register(Auditoria)
 class AuditoriaAdmin(admin.ModelAdmin):
     list_display = [

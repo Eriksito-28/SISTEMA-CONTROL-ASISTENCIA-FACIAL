@@ -1,3 +1,8 @@
+"""
+Crea las clases con los campos para la tabla configuracionsistema,
+para luego migrar
+"""
+
 from django.db import models
 
 class ConfiguracionSistema(models.Model):
@@ -11,6 +16,13 @@ class ConfiguracionSistema(models.Model):
     # IPs autorizadas separadas por coma. Ej: 127.0.0.1, 192.168.1.1
     ip_autorizada = models.TextField(null=True, blank=True)
     control_ip_activo = models.BooleanField(default=False)
+    ultima_modificacion_por_id = models.ForeignKey(
+    'usuarios.Usuario',
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name='configuraciones_modificadas'
+)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -26,3 +38,4 @@ class ConfiguracionSistema(models.Model):
         if not self.ip_autorizada:
             return []
         return [ip.strip() for ip in self.ip_autorizada.split(',') if ip.strip()]
+    

@@ -1,7 +1,12 @@
+"""
+Función para registrar las acciones del usuario en auditoria
+"""
+
 from .models import Auditoria
 
 
-#esta funcion recibe la accion que realizo el usuairo, que accion, una descripcion y la ip 
+#esta funcion crea un nuevo registro en la tabla de auditoria con informacion del
+#usuario y recibe la accion que realizo el usuario, que accion, una descripcion y la ip
 def registrar_auditoria(usuario, accion, descripcion, ip=None):
     auditoria = Auditoria.objects.create(
         usuario=usuario,
